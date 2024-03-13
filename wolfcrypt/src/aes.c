@@ -3074,17 +3074,18 @@ void AES_read(Aes_Reg *reg, uint8_t *cipher) {
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
+            #ifdef VE_HEP_AES
             if (aes->keylen == 16) {
-                println("with key len 16");
+                //println("with key len 16");
                 AES_write(AES, (byte*)aes->key, in);
                 AES->CTRL |= 1;
                 while(AES->STATUS != 1){
                     asm volatile ("nop");
                 }
-                byte buf[16];
-                AES_read(AES, buf);
-                wc_AesEncrypt(aes, in, out);
-                for(int i = 0; i < 16; ++i) {
+                //byte buf[16];
+                AES_read(AES, out);
+                //wc_AesEncrypt(aes, in, out);
+                /*for(int i = 0; i < 16; ++i) {
                     if (buf[i] != out[i]) {
                         println("mismatch");
                         break;
@@ -3093,7 +3094,7 @@ void AES_read(Aes_Reg *reg, uint8_t *cipher) {
                 phex("key", aes->key, 16);
                 phex("in", in, 16);
                 phex("out", out, 16);
-                phex("buf", buf, 16);
+                phex("buf", buf, 16);*/
             } else {
                 println("with key len != 16");
                 for (int i = 0; i < aes->keylen; ++i) {
@@ -3101,6 +3102,9 @@ void AES_read(Aes_Reg *reg, uint8_t *cipher) {
                 }
                 wc_AesEncrypt(aes, in, out);
             }
+            #else
+            wc_AesEncrypt(aes, in, out);
+            #endif
         }
         #ifdef HAVE_AES_DECRYPT
         /* Allow direct access to one block decrypt */

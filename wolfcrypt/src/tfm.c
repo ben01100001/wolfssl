@@ -563,8 +563,44 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 }
 #endif
 
+#include "comba.h"
+#define SIZE FP_SIZE
+void mul_comba(uint32_t a[SIZE], uint32_t b[SIZE], uint32_t c[2*SIZE]) {
+    comba_shift();
+    comba_shift();
+    for (unsigned i = 0; i < SIZE; i++){
+    	for (unsigned j = 0; j <= i; j++){
+		comba_mul(a[j], b[i - j]);
+	}
+	c[i] = comba_shift();
+    }
+    for (unsigned i = SIZE; i < 2 * SIZE; i++){
+    	for (unsigned j = SIZE - 1; j > i - SIZE; j--){
+		comba_mul(a[j], b[i - j]);
+	}
+	c[i] = comba_shift();
+    }
+    /*comba_mul(a[0],b[0]);
+    c[0] = comba_shift();
+    comba_mul(a[1],b[0]);
+    comba_mul(a[2],b[2]);
+    comba_mul(a[3],b[1]);
+    c[4] = comba_shift();
+    comba_mul(a[2],b[3]);
+    comba_mul(a[3],b[2]);
+    c[5] = comba_shift();
+    comba_mul(a[3],b[3]);
+    c[6] = comba_shift();
+    c[7] = comba_shift();*/
+}
+
 int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 {
+   #ifdef VE_HEP_MUL
+   fp_int C2;
+   memcpy(&C2,C, sizeof C2);
+   mul_comba(A->dp,B->dp,C2.dp);
+   #endif
    int       ret = 0;
    int       ix, iy, iz, tx, ty, pa;
    fp_digit  c0, c1, c2, *tmpx, *tmpy;
@@ -600,7 +636,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
       fp_init(tmp);
       dst = tmp;
    }
-
+   #ifndef VE_HEP_MUL
    for (ix = 0; ix < pa; ix++) {
       /* get offsets into the two bignums */
       ty = MIN(ix, (B->used > 0 ? B->used - 1 : 0));
@@ -626,6 +662,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
       /* store term */
       COMBA_STORE(dst->dp[ix]);
   }
+  #endif
   COMBA_FINI;
 
   dst->used = pa;
@@ -639,6 +676,16 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
+#ifdef VE_HEP_MUL
+memcpy(C->dp, C2.dp, sizeof C->dp);
+#endif
+/*if (!memcmp(C->dp, C2.dp, sizeof C->dp)){
+    println("mul correct");
+}
+  else{
+    phex("dst", C->dp, sizeof C->dp);
+    phex("dst2", C2.dp, sizeof C2.dp);
+}*/
   return ret;
 }
 
